@@ -2,6 +2,8 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <thread>
+#include <mutex>
 
 #include "Dictionary.hpp"
 #include "MyHashtable.hpp"
@@ -45,7 +47,14 @@ std::vector<std::vector<std::string>> tokenizeLyrics(const std::vector<std::stri
   return ret;
 }
 
-
+void wordCount(int& c, std::mutex & mut, std::vector<std::string> & fc, Dictionary<std::string, int> & dt) {
+  for(auto & w : fc) {
+    std::lock_guard<std::mutex> lg(mut);
+    c = dt.get(w);
+    ++c;
+    dt.set(w, c);
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -73,18 +82,21 @@ int main(int argc, char **argv)
   MyHashtable<std::string, int> ht;
   Dictionary<std::string, int>& dict = ht;
 
+  std::vector<std::thread> filethreads;
+  std::mutex mu;
+  int count = 0;
 
+  auto start = std::chrono::steady_clock::now();
 
-  // write code here
+  for(auto & filecontent: wordmap) {
+    filethreads.push_back(std::thread(wordCount, std::ref(count), std::ref(mu), std::ref(filecontent), std::ref(dict)));
+  }
 
+  for(auto& t: filethreads)
+    t.join();
 
-
-
-
-
-
-
-
+  auto stop = std::chrono::steady_clock::now();
+  std::chrono::duration<double> time_elapsed = stop-start;
 
   // Check Hash Table Values 
   /* (you can uncomment, but this must be commented out for tests)
